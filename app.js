@@ -1,57 +1,45 @@
-const express         =     require('express')
-  , passport          =     require('passport')
-  , cookieParser      =     require('cookie-parser')
-  , session           =     require('express-session')
-  , bodyParser        =     require('body-parser')
-  , config            =     require('./configuration/config')
-  , app               =     express();
+const express = require('express');
+const cookieSession = require('cookie-session');
+const passport = require('passport');
+const authRoutes = require('./routes/auth-routes');
+const profileRoutes = require('./routes/profile-routes');
+const passportSetup = require('./config/passport-setup');
+const mongoose = require('mongoose');
+const keys = require('./config/keys');
+/*var flash = require('connect-flash');*/
+var flash = require('express-flash');
+const app = express();
 
-var GoogleStrategy = require('passport-google-oauth20').Strategy;
-
-passport.use(new GoogleStrategy({
-    clientID: config.api_key,
-    clientSecret: config.api_secret,
-    callbackURL: config.callback_url
-  },
-  function(accessToken, refreshToken, profile, done) {
-    return done(null, profile);
-  }
-));
-
-// Passport session setup.
-passport.serializeUser(function(user, done) {
-  done(null, user);
-});
-
-passport.deserializeUser(function(obj, done) {
-  done(null, obj);
-});
-
-app.set('views', __dirname + '/views');
+app.use(flash()); // use connect-flash for flash messages stored in session
+// set view engine
 app.set('view engine', 'ejs');
-app.use(cookieParser());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
+
+// set up session cookies
+app.use(cookieSession({
+    maxAge: 24 * 60 * 60 * 1000,
+    keys: [keys.session.cookieKey]
+}));
+
+// initialize passport
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(express.static(__dirname + '/public'));
 
-app.get('/', function(req, res){
-  res.render('index', { user: req.user });
+
+// connect to mongodb
+mongoose.connect(keys.mongodb.dbURI, { useNewUrlParser: true }, () => {
+    console.log('connected to mongodb');
 });
 
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }));
+// set up routes
+app.use('/auth', authRoutes);
+app.use('/profile', profileRoutes);
 
-app.get('/auth/google/callback', 
-  passport.authenticate('google',  { successRedirect : '/', failureRedirect: '/login' }),
-  function(req, res) {
-    res.redirect('/');
-  }
-);
 
-app.get('/logout', function(req, res){
-  req.logout();
-  res.redirect('/');
+// create home route
+app.get('/', (req, res) => {
+    res.render('home', { user: req.user });
 });
 
-app.listen(3000, () => console.log('Server up'));
+app.listen(3000, () => {
+    console.log('app now listening for requests on port 3000');
+});

@@ -1,2 +1,2 @@
-# oauth20Example
-Exemplo utilizado para aula de Autenticação e Autorização no IGTI
+# oauth20
+oauth2.0 with google,facebook strategies
